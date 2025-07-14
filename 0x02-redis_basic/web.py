@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
-Expiring web cache and access counter using Redis
+Web cache and tracker using Redis
 """
 
 import redis
 import requests
-from typing import Callable
 from functools import wraps
+from typing import Callable
 
 
+# Redis connection
 r = redis.Redis()
 
 
 def count_access(method: Callable) -> Callable:
     """
-    Decorator to count accesses to a URL
+    Decorator to count how many times a URL was accessed
     """
     @wraps(method)
     def wrapper(url: str) -> str:
@@ -25,14 +26,16 @@ def count_access(method: Callable) -> Callable:
 
 def cache_page(method: Callable) -> Callable:
     """
-    Decorator to cache the page result for 10 seconds
+    Decorator to cache the page content for 10 seconds
     """
     @wraps(method)
     def wrapper(url: str) -> str:
         cached = r.get(f"cached:{url}")
         if cached:
             return cached.decode("utf-8")
+
         html = method(url)
+        # Cache the result for 10 seconds
         r.setex(f"cached:{url}", 10, html)
         return html
     return wrapper
@@ -42,13 +45,13 @@ def cache_page(method: Callable) -> Callable:
 @cache_page
 def get_page(url: str) -> str:
     """
-    Fetch and cache the HTML content of a URL
+    Fetch HTML content from the given URL.
 
     Args:
-        url (str): The URL to fetch
+        url (str): The target URL
 
     Returns:
-        str: The HTML content of the page
+        str: HTML content of the URL
     """
     response = requests.get(url)
     return response.text
