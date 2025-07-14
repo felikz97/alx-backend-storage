@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """
 Expiring web cache and access counter using Redis.
-Tracks number of times a URL is accessed and caches content
-for 10 seconds before expiring the key.
 """
 
 import redis
@@ -11,7 +9,6 @@ from functools import wraps
 from typing import Callable
 
 
-# Initialize Redis client
 r = redis.Redis()
 
 
@@ -103,26 +100,3 @@ if __name__ == "__main__":
     print("Access count:", r.get(f"count:{url}").decode())
 
     print("\n=== End of Test ===")
-
-class Cache:
-    """
-    Cache class interfacing with Redis to store data and track usage.
-    """
-    def __init__(self):
-        self._redis = redis.Redis()
-
-    @count_access
-    @cache_page
-    def store(self, data: str) -> str:
-        """
-        Store data in Redis and return it.
-
-        Args:
-            data (str): The data to store.
-
-        Returns:
-            str: The stored data.
-        """
-        key = f"data:{data}"
-        self._redis.set(key, data)
-        return data
