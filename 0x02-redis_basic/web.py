@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Expiring web cache and access counter using Redis.
+Web cache using Redis: count access and expire cache after 10 seconds.
 """
 
 import redis
@@ -8,95 +8,67 @@ import requests
 from functools import wraps
 from typing import Callable
 
-
 r = redis.Redis()
 
 
 def count_access(method: Callable[[str], str]) -> Callable[[str], str]:
-    """
-    Decorator to count how many times a URL was accessed.
-
-    Args:
-        method (Callable): The method to wrap.
-
-    Returns:
-        Callable: The wrapped method with counting logic.
-    """
+    """Decorator to count how many times a URL is accessed."""
     @wraps(method)
     def wrapper(url: str) -> str:
-        key = f"count:{url}"
-        r.incr(key)
+        count_key = f"count:{url}"
+        r.incr(count_key)
         return method(url)
     return wrapper
 
 
-def cache_page(method: Callable[[str], str]) -> Callable[[str], str]:
-    """
-    Decorator to cache the HTML content of a URL in Redis for 10 seconds.
-
-    Args:
-        method (Callable): The method to wrap.
-
-    Returns:
-        Callable: The wrapped method with caching logic.
-    """
+def cache_result(method: Callable[[str], str]) -> Callable[[str], str]:
+    """Decorator to cache the HTML content for 10 seconds."""
     @wraps(method)
     def wrapper(url: str) -> str:
-        key = f"cached:{url}"
-        cached = r.get(key)
+        cache_key = f"cache:{url}"
+        cached = r.get(cache_key)
         if cached:
             return cached.decode("utf-8")
-        html = method(url)
-        r.setex(key, 10, html)
-        return html
+        result = method(url)
+        r.setex(cache_key, 10, result)
+        return result
     return wrapper
 
 
 @count_access
-@cache_page
+@cache_result
 def get_page(url: str) -> str:
     """
-    Fetch and return the HTML content of a URL.
-
-    If the URL is cached, return the cached result.
-    Otherwise, perform a web request, cache it, and return the result.
+    Fetches and returns HTML content of a given URL.
+    Uses Redis to cache for 10 seconds and tracks access count.
 
     Args:
-        url (str): The target URL.
+        url (str): The URL to fetch.
 
     Returns:
-        str: The HTML content of the page.
+        str: HTML content.
     """
-    response = requests.get(url)
-    return response.text
+    return requests.get(url).text
 
 
 if __name__ == "__main__":
     import time
 
     url = "http://google.com"
-
-    print("=== Test Case: Redis Web Cache ===\n")
-
-    print("1. Fetching URL (should hit network)...")
+    print("Calling get_page...")
     html = get_page(url)
-    print(f"Length of content: {len(html)}")
-    print("Cached:", bool(r.get(f"cached:{url}")))
-    print("Access count:", r.get(f"count:{url}").decode())
+    print("Length of content:", len(html))
+    print("Cache exists:", r.exists(f"cache:{url}"))
+    print("Access count:", int(r.get(f"count:{url}")))
 
-    print("\n2. Fetching again within 10 seconds (should be cached)...")
+    print("\nCalling get_page again (should be cached)...")
     html = get_page(url)
-    print(f"Length of content: {len(html)}")
-    print("Cached:", bool(r.get(f"cached:{url}")))
-    print("Access count:", r.get(f"count:{url}").decode())
+    print("Access count:", int(r.get(f"count:{url}")))
 
-    print("\nWaiting 11 seconds for cache to expire...")
+    print("\nSleeping for 11 seconds (cache expires)...")
     time.sleep(11)
 
-    print("\n3. Fetching after cache expiry (should hit network again)...")
+    print("\nCalling get_page again (cache should be gone)...")
     html = get_page(url)
-    print(f"Length of content: {len(html)}")
-    print("Cached:", bool(r.get(f"cached:{url}")))
-    print("Access count:", r.get(f"count:{url}").decode())
-
-    print("\n=== End of Test ===")
+    print("Cache exists:", r.exists(f"cache:{url}"))
+    print("Access count:", int(r.get(f"count:{url}")))
