@@ -59,7 +59,7 @@ def get_page(url: str) -> str:
 if __name__ == "__main__":
     import time
 
-    url = "http://google.com"
+    url = "http://slowwly.robertomurray.co.uk"
 
     print("1. Fetching URL (should be slow)...")
     html = get_page(url)
