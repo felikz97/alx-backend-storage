@@ -54,3 +54,30 @@ def get_page(url: str) -> str:
     """
     response = requests.get(url)
     return response.text
+
+
+if __name__ == "__main__":
+    import time
+
+    url = "http://google.com"
+
+    print("1. Fetching URL (should be slow)...")
+    html = get_page(url)
+    print(f"Length: {len(html)}")
+    print("Cached:", bool(r.get(f"cached:{url}")))
+    print("Access count:", r.get(f"count:{url}").decode())
+
+    print("\n2. Fetching again (should be cached)...")
+    html = get_page(url)
+    print(f"Length: {len(html)}")
+    print("Cached:", bool(r.get(f"cached:{url}")))
+    print("Access count:", r.get(f"count:{url}").decode())
+
+    print("\nWaiting 11 seconds for cache to expire...")
+    time.sleep(11)
+
+    print("\n3. Fetching after cache expiry (should be slow)...")
+    html = get_page(url)
+    print(f"Length: {len(html)}")
+    print("Cached:", bool(r.get(f"cached:{url}")))
+    print("Access count:", r.get(f"count:{url}").decode())
